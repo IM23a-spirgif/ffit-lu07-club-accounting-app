@@ -36,4 +36,5 @@ gradle-app.log
 Thumbs.db
 
 # === Other ===
-src/main/resources/application.properties
+/src/main/resources/application.properties
+/app.log
