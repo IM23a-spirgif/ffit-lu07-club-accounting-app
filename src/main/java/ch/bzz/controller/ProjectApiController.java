@@ -1,10 +1,11 @@
-﻿package ch.bzz.controller;
+package ch.bzz.controller;
 
 import ch.bzz.Project;
 import ch.bzz.ProjectRepository;
 import ch.bzz.generated.api.ProjectApi;
 import ch.bzz.generated.model.LoginProject200Response;
 import ch.bzz.generated.model.LoginRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,8 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
 @RequestMapping("/api")
+@Slf4j
 public class ProjectApiController implements ProjectApi {
-
     private final ProjectRepository projectRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -35,47 +36,45 @@ public class ProjectApiController implements ProjectApi {
 
     @Override
     public ResponseEntity<Void> createProject(LoginRequest loginRequest) {
-        // Basic validation
         if (loginRequest == null || !StringUtils.hasText(loginRequest.getProjectName()) || !StringUtils.hasText(loginRequest.getPassword())) {
+            log.error("projectName and password are required");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "projectName and password are required");
         }
-
         String projectName = loginRequest.getProjectName().trim();
         String rawPassword = loginRequest.getPassword();
-
         if (projectRepository.existsById(projectName)) {
+            log.error("Project already exists");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Project already exists");
         }
-
         String hash = passwordEncoder.encode(rawPassword);
         Project project = new Project(projectName, hash);
         projectRepository.save(project);
-
+        log.info("Created project {}", projectName);
         return ResponseEntity.created(URI.create("/api/projects/" + projectName)).build();
     }
 
     @Override
     public ResponseEntity<LoginProject200Response> loginProject(LoginRequest loginRequest) {
         if (loginRequest == null || !StringUtils.hasText(loginRequest.getProjectName()) || !StringUtils.hasText(loginRequest.getPassword())) {
+            log.error("Invalid credentials");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-
         String projectName = loginRequest.getProjectName().trim();
         String rawPassword = loginRequest.getPassword();
-
         Optional<Project> projectOpt = projectRepository.findById(projectName);
         if (projectOpt.isEmpty()) {
+            log.error("Invalid credentials");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-
         Project project = projectOpt.get();
         if (!passwordEncoder.matches(rawPassword, project.getPasswordHash())) {
+            log.error("Invalid credentials");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-
         String token = jwtUtil.generateToken(projectName);
         LoginProject200Response body = new LoginProject200Response();
         body.setAccessToken(token);
+        log.info("Login successful for project {}", projectName);
         return ResponseEntity.ok(body);
     }
 }

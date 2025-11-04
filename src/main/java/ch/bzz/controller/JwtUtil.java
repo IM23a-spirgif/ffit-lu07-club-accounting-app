@@ -1,4 +1,4 @@
-﻿package ch.bzz.controller;
+package ch.bzz.controller;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
