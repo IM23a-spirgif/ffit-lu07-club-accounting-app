@@ -18,14 +18,15 @@ public class WebConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOriginPatterns(
-//                                "null", // e.g. file://...
-//                                "http://localhost:8080",
-//                                "https://localhost:8443",
-//                                "https://*.github.io"
+//                               "null",
+                                "http://localhost:8080",
+                                "https://localhost:8443",
+                                "https://*.github.io",
                                 "https://alexanderpeter.github.io"
                         )
                         .allowedMethods("*")
-                        .allowCredentials(true);
+                        .exposedHeaders("*")
+                        .allowCredentials(false);
             }
         };
     }

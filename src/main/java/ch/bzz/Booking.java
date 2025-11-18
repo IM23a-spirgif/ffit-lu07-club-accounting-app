@@ -36,7 +36,7 @@ public class Booking {
     private Account creditAccount;
 
     @Column(name = "amount", nullable = false)
-    private double amount;
+    private float amount;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "project_name", nullable = false)

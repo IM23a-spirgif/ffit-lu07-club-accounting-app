@@ -21,7 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/")
 @Slf4j
 public class ProjectApiController implements ProjectApi {
     private final ProjectRepository projectRepository;
