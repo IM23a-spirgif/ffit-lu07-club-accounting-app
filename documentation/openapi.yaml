@@ -87,8 +87,17 @@ paths:
                   items:
                     $ref: "#/components/schemas/AccountUpdate"
       responses:
-        "200":
-          description: Changes saved successfully
+        "204":
+          description: |
+            Changes processed successfully (no content)
+            
+            Behavior:
+            - If an item contains a new `number` with a non-empty `name`, the account is created.
+            - If an item references an existing `number` and contains a non-empty `name`, the account's name is updated.
+            - If an item references an existing `number` and contains `name: null`, the account is deleted.
+            - If an item contains a non-existing `number` and `name` is null or blank, it is ignored (no-op).
+        "409":
+          description: Conflict – account cannot be deleted due to existing references (e.g., bookings)
 
   /bookings:
     get:
@@ -122,8 +131,44 @@ paths:
                   items:
                     $ref: "#/components/schemas/BookingUpdate"
       responses:
-        "200":
-          description: Changes saved successfully
+        "204":
+          description: |
+            Changes processed successfully (no content)
+
+            Behavior:
+            - Create: When an item has `id: null` and all fields `date`, `text`, `debit`, `credit`, `amount` are present with non-null values, a booking is created.
+            - Update: When an item has an existing `id`, any provided non-null field updates that attribute. Omitted fields remain unchanged.
+            - Delete via PUT: When an item has an existing `id` and contains only fields explicitly set to `null` (and no non-null updates), the booking is deleted.
+            - Debit/Credit reference accounts by their `number` (account_number), not by internal database id.
+            - Unknown ids: Items that reference a non-existing `id` are ignored (no-op).
+        "400":
+          description: Bad Request – invalid account references or missing fields for create
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden – booking does not belong to the project
+
+  /bookings/{id}:
+    delete:
+      tags:
+        - Booking
+      summary: Delete a booking by id
+      operationId: deleteBooking
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden – booking does not belong to the project
+        "404":
+          description: Booking not found
 
 components:
   schemas:
@@ -161,6 +206,10 @@ components:
           type: string
           nullable: true
           example: Bank
+          description: |
+            The account name. When omitted, the name remains unchanged. When set
+            to a non-empty value, the name is updated/used on create. When explicitly
+            set to null, the account will be deleted if it exists.
 
     Booking:
       type: object

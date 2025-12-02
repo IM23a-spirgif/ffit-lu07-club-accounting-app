@@ -72,33 +72,44 @@ public class AccountApiController implements AccountApi {
         String auth = request.getHeader("Authorization");
         if (auth == null || !auth.startsWith("Bearer "))
             return ResponseEntity.status(401).build();
-        String token = auth.substring(7);
-        String projectName = jwtUtil.extractSubject(token);
+        String projectName = jwtUtil.extractSubject(auth.substring(7));
         Project project = projectRepository.findById(projectName).orElse(null);
         if (project == null)
             return ResponseEntity.status(401).build();
-        Map<Integer, ch.bzz.Account> existing =
-                accountRepository.findByProject(project).stream()
-                        .collect(Collectors.toMap(ch.bzz.Account::getAccountNumber, a -> a));
+        Map<Integer, ch.bzz.Account> existing = accountRepository.findByProject(project)
+                .stream()
+                .collect(Collectors.toMap(ch.bzz.Account::getAccountNumber, a -> a));
         for (var api : body.getAccounts()) {
             Integer number = api.getNumber();
-            String name = unwrap(api.getName());
+            JsonNullable<String> nameField = api.getName();
             if (number == null)
                 continue;
+            boolean isExplicitNull = nameField != null && nameField.isPresent() && nameField.get() == null;
+            boolean isPresentValue = nameField != null && nameField.isPresent() && nameField.get() != null;
             ch.bzz.Account entity = existing.get(number);
             if (entity == null) {
-                entity = new ch.bzz.Account();
-                entity.setProject(project);
-                entity.setAccountNumber(number);
+                if (isPresentValue && !nameField.get().isBlank()) {
+                    ch.bzz.Account neu = new ch.bzz.Account();
+                    neu.setProject(project);
+                    neu.setAccountNumber(number);
+                    neu.setName(nameField.get());
+                    accountRepository.save(neu);
+                }
+                continue;
             }
-            if (name != null && !name.isBlank())
-                entity.setName(name);
-            accountRepository.save(entity);
+            if (isExplicitNull) {
+                try {
+                    accountRepository.delete(entity);
+                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                    return ResponseEntity.status(409).build();
+                }
+                continue;
+            }
+            if (isPresentValue && !nameField.get().isBlank()) {
+                entity.setName(nameField.get());
+                accountRepository.save(entity);
+            }
         }
         return ResponseEntity.noContent().build();
-    }
-
-    private <T> T unwrap(JsonNullable<T> value) {
-        return value != null && value.isPresent() ? value.get() : null;
     }
 }
